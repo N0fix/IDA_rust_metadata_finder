@@ -1,0 +1,18 @@
+[tool.poetry]
+name = "ida-rust-metadata-finder"
+version = "0.1.0"
+description = ""
+authors = ["Nofix <16479266+N0fix@users.noreply.github.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+rustbininfo = "^0.5.1"
+requests = "^2.32.3"
+semver = "^3.0.2"
+pydantic = "^2.9.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

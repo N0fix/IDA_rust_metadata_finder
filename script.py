@@ -4,11 +4,96 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Callable, List
 
+from rustbininfo import Crate
+from requests import get
 import ida_bytes
 import ida_typeinf
 from ida_segment import get_segm_name, get_segm_qty, getnseg
 from idautils import Segments
 
+found_crates = {}
+def _guess_dependencies(content: bytes):
+    regexes = [
+        rb"index.crates.io.[^\\\/]+.([^\\\/]+)",
+        rb"registry.src.[^\\\/]+.([^\\\/]+)",
+        rb"rust.deps.([^\\\/]+)",
+    ]
+    result = []
+    for reg in regexes:
+        res = re.findall(reg, content)
+        if len(set(res)) > len(result):
+            result = set(res)
+
+    return result
+
+def _guess_path(content: bytes) -> bytes:
+    regexes = [
+        rb"index.crates.io.[^\\\/]+.[^\\\/]+.([ -~]*\.rs)",
+        rb"registry.src.[^\\\/]+.[^\\\/]+.([ -~]*\.rs)",
+        rb"rust.deps.[^\\\/]+.([ -~]*\.rs)",
+    ]
+    result = []
+    for reg in regexes:
+        res = re.findall(reg, content)
+        if len(res) != 0:
+            return res[0]
+
+    return result
+
+def guess_url(s, line, col):
+    github_url, fn_name, current_line = None, None, None
+    dep_name_list = _guess_dependencies(s.encode())
+    if not dep_name_list:
+        return github_url, fn_name, current_line
+    dep_name = dep_name_list.pop().decode()
+
+    path = _guess_path(s.encode())
+    if path:
+        path = path.replace(b'\\', b'/').decode()
+
+    c = Crate.from_depstring(dep_name)
+    if str(c) not in found_crates.keys():
+
+        c.metadata
+        found_crates[str(c)] = None
+        crate = c
+        seeked_tags = [
+            f"{crate.name}-{crate.version}",
+            f"{crate.name}-v{crate.version}",
+            f"{crate.name}_{crate.version}",
+            f"{crate.name}_v{crate.version}",
+            f"{crate.version}",
+            f"v{crate.version}",
+        ]
+
+        for tag in seeked_tags:
+            url = f'{c.repository.rstrip(".git")}/tree/{tag}/'
+            res = get(url)
+            if res.status_code == 200:
+                found_crates[str(c)] = url
+                break
+        
+    if found_crates[str(c)] is not None:
+        # res = get(f'{url}/{path}')
+        github_url = f'{found_crates[str(c)]}{path}/#L{line}'
+        url = github_url
+        url = f'{url}/{path}#L{line}'.replace('github.com', 'raw.githubusercontent.com').replace('/tree/', '/').replace('/blob/', '/')
+        res = get(url)
+
+        if res.status_code == 200:
+            raw_url = url
+
+            current_line = res.text.splitlines()[line-1]
+            rule = rb'^\s*(pub)*(\(crate\))*\s*fn\s'
+            for line in res.text.splitlines()[:line-1:-1]:
+                if re.match(rule.decode(), line):
+                    # print(line, current_line)
+                    fn_name = line
+                    break
+        
+    return (github_url, fn_name, current_line)
+        
+    
 
 def get_string_from_ptr(addr, sz, read_ptr):
     sz = ctypes.c_long(sz).value
@@ -110,7 +195,11 @@ def find_panic_location_in_segm(get_segm_info: Callable) -> List[RustPanicLocati
             line = ida_bytes.get_dword(i + size_of_ptr * 2)
             col = ida_bytes.get_dword(i + size_of_ptr * 2 + 4)
             if (line > 0 and line < 0xFFFF) and (col > 0 and col < 0xFFFF):
-                print(hex(i), rust_string, line, col, f'{slugify(f"CORE_PANIC_LOCATION___{rust_string}_{line}_{col}")}')
+                # print(hex(i), rust_string, line, col, f'{slugify(f"CORE_PANIC_LOCATION___{rust_string}_{line}_{col}")}')
+                github_url, fn_name, cur_line =  guess_url(rust_string, line, col)
+                if github_url:
+                    set_cmt(i, f'\n{github_url}\nFunction name: {fn_name}\nPanic line:{cur_line}', 0)
+                    print(hex(i))
                 set_name(i, slugify(f"CORE_PANIC_LOCATION___{rust_string}_{line}_{col}"), SN_NOCHECK | SN_NOWARN)
                 panic_locations.append(
                     RustPanicLocation(rust_string, line, col)
@@ -160,3 +249,6 @@ else:
         results = find_panic_location_in_segm(lambda: get_segm_info(getnseg(n)))
         if len(results) > 10:
             break
+
+
+print(found_crates)
