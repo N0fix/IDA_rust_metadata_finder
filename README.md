@@ -1,13 +1,18 @@
-IDA naive implementation of [Cindʎ Xiao](https://cxiao.net/)'s [rust metadata carver](https://github.com/cxiao/rust_metadata_carver) plugin for Binary Ninja.
+# Rust metadata helper for IDA
 
-Her plugin is explained in a great blog post you can find [here](https://cxiao.net/posts/2023-12-08-rust-reversing-panic-metadata/).
+This IDA script does two things:
 
-It explains how it works and the limitations, the main limitation being that -I quote- "Type layouts in compiled Rust binaries are not stable".
-This means that you might have to edit the two dataclasses in this script along with `find_panic_location_in_segm` method.
-
-If the script works, it should rename and retype panic error messages in your target rust executable.
-
-Use it using `File -> script file` in IDA. Requires IDA python.
+- it renames and retype every panics found in your target executable:
 
 ![](./imgs/metadata_rdata.jpg)
-![](./imgs/metadata_decomp.jpg)
+
+- it comments decompiler output with matching code, giving you the exact panic location in source code:
+![](./imgs/decomp_panic.jpg)
+
+# Want to extend the plugin ?
+
+You can implement your own disassembler class to extend this script to binary ninja or else. To do so, create a class that herits from `./rusthelper/impl/generic.py`, and use it instead of the default `IDAImpl`.
+
+# Acknowledgments
+
+This is based on Cindy Xiao's [blog and Binary ninja plugin](https://cxiao.net/posts/2023-12-08-rust-reversing-panic-metadata/).
