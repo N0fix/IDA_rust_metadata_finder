@@ -1,8 +1,8 @@
 import re
 from typing import Any
 
-import semver
 from pydantic import BaseModel
+from rustbininfo import Crate
 
 from rusthelper.extra_info import get_executable_rustc_version, get_rustc_commit, guess_dependencies
 
@@ -19,37 +19,37 @@ def sub_idx(a, b):
     return r
 
 
-class Crate(BaseModel):
-    name: str
-    version: str
+# class Crate(BaseModel):
+#     name: str
+#     version: str
 
-    @classmethod
-    def from_depstring(cls, dep_str: str) -> "Crate":
-        try:
-            name, version = dep_str.rsplit("-", 1)
-            obj = cls(
-                name=name,
-                version=str(semver.Version.parse(version)),
-            )
+#     @classmethod
+#     def from_depstring(cls, dep_str: str) -> "Crate":
+#         try:
+#             name, version = dep_str.rsplit("-", 1)
+#             obj = cls(
+#                 name=name,
+#                 version=str(semver.Version.parse(version)),
+#             )
 
-        except:  # noqa E722
-            name, version, patch = dep_str.rsplit("-", 2)
-            version += f"-{patch}"
-            obj = cls(
-                name=name,
-                version=str(semver.Version.parse(version)),
-            )
+#         except:  # noqa E722
+#             name, version, patch = dep_str.rsplit("-", 2)
+#             version += f"-{patch}"
+#             obj = cls(
+#                 name=name,
+#                 version=str(semver.Version.parse(version)),
+#             )
 
-        return obj
+#         return obj
 
-    def __str__(self):
-        if self.version:
-            return f"{self.name}-{self.version}"
+#     def __str__(self):
+#         if self.version:
+#             return f"{self.name}-{self.version}"
 
-        return f"{self.name}"
+#         return f"{self.name}"
 
-    def __hash__(self):
-        return hash((self.name, self.version))
+#     def __hash__(self):
+#         return hash((self.name, self.version))
 
 
 class RustSourcePathTransformer:

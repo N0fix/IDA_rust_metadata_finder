@@ -161,21 +161,9 @@ class IDAImpl(Tool):
         return getattr(self, f"{self.get_executable_filepath()}_content")
 
     def get_ptrsize(self):
-        info = idaapi.get_inf_structure()
-        ptr_size = None
-        if info.is_64bit():
-            ptr_size = 8
-        elif info.is_32bit():
-            ptr_size = 4
-        return ptr_size
-
-
-def inf_is_64bit():
-    return (idaapi.inf_is_64bit if idaapi.IDA_SDK_VERSION >= 900 else idaapi.cvar.inf.is_64bit)()
-
-
-def get_addr_width():
-    return "16" if inf_is_64bit() else "8"
+        if (idaapi.inf_is_64bit if idaapi.IDA_SDK_VERSION >= 900 else idaapi.cvar.inf.is_64bit)():
+            return 8
+        return 4
 
 
 class ListEntry(BaseModel):

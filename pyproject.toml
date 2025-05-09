@@ -1,5 +1,5 @@
 [project]
-name = "rusthelper"
+name = "rust_metadata_finder"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
@@ -15,6 +15,7 @@ dependencies = [
     "tree-sitter==0.24.0",
     "tree-sitter-rust==0.23.2",
     "xdg-base-dirs>=6.0.2",
+    "rustbininfo>=0.7.2",
 ]
 
 [tool.ruff]
@@ -25,9 +26,7 @@ select = ["ALL"]
 ignore = ["N802", "D100", "D101", "ANN401"]
 
 [dependency-groups]
-dev = [
-    "ruff>=0.9.4",
-]
+dev = ["ruff>=0.9.4"]
 
 [build-system]
 requires = ["hatchling"]

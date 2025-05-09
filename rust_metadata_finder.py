@@ -111,22 +111,27 @@ def determine_col_line_order(panic_locations: list[RustPanicLocation]):
 
 
 def get_rust_func_from_source(source_code: str, line: int) -> RustFunction | None:
-    funcs, impls, macros = parse_rust_source(source_code.encode())
-    all_funcs = funcs + macros
+    if not hasattr(get_rust_func_from_source, "cache"):
+        get_rust_func_from_source.cache = {}
 
-    for impl in impls:
-        all_funcs += impl.fns
+    if results := get_rust_func_from_source.cache.get(source_code):
+        all_funcs = results
+
+    else:
+        funcs, impls, macros = parse_rust_source(source_code.encode())
+
+        all_funcs = funcs + macros
+
+        for impl in impls:
+            all_funcs += impl.fns
+
+        get_rust_func_from_source.cache[source_code] = all_funcs
 
     for fn in all_funcs:
-        try:
-            # print(fn.start, fn.end, fn.name)
-            if not (fn.start <= line <= fn.end):
-                continue
+        if not (fn.start <= line <= fn.end):
+            continue
 
-            return fn
-
-        except ValueError:
-            pass
+        return fn
 
     return None
 
@@ -165,7 +170,8 @@ def specialize_panic_info(panic_infos: list[PanicInfo]) -> list[PanicInfoDep | P
         url = rpt.get_url()
 
         if not rpt.is_native():
-            if f := get_associated_fn(fetch_source_code(url), info.line):
+            code = fetch_source_code(rpt._crate, rpt._particle)
+            if f := get_associated_fn(code, info.line):
                 res.append(info.to_PanicInfoDep(f, url, rpt._crate))
 
         elif f := get_associated_fn(fetch_native_source_code(url), info.line):
@@ -175,6 +181,7 @@ def specialize_panic_info(panic_infos: list[PanicInfo]) -> list[PanicInfoDep | P
             print(f"WARNING: no function matched. Context: {info=}")
             print(f"See {rpt.get_viewable_url()}#L{info.line}")
             print(f"Was native? {rpt.is_native()}")
+
     return res
 
 
@@ -287,7 +294,8 @@ def show_menu(dis: Tool, locs: list[PanicInfo]):
             continue
 
         if data.get(fn.start_ea, None) is None:
-            data[fn.start_ea] = Data(ea=fn.start_ea, name=dis.get_fn_name(fn.start_ea))
+            name = dis.get_fn_name(fn.start_ea)
+            data[fn.start_ea] = Data(ea=fn.start_ea, name=name if name else "")
 
         data[fn.start_ea].tags.extend([l])
 

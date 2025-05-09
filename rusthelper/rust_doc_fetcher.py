@@ -1,7 +1,10 @@
+import pathlib
 import re
 
 import httpx
 from bs4 import BeautifulSoup
+from rustbininfo import Crate
+from xdg_base_dirs import xdg_data_home
 
 from rusthelper.caching_mod import cache
 
@@ -65,9 +68,27 @@ def _get_rust_code_from_raw_github(url: str) -> str:
         return ""
 
 
-@cache.cache()
-def fetch_source_code(url: str) -> str:
-    return _get_rust_code_from_docsrs(url)
+# @cache.cache()
+# def fetch_source_code(url: str) -> str:
+# return _get_rust_code_from_docsrs(url)
+
+
+def fetch_source_code(crate: Crate, particle: str) -> str:
+    cache_dir = pathlib.Path(xdg_data_home()) / "metadata_fetcher"
+    cache_dir.mkdir(exist_ok=True)
+    expected_path = pathlib.Path(cache_dir / f"{crate}")
+    archive = pathlib.Path(f"{expected_path}.tar.gz")
+    if not archive.exists():
+        print("Downloading ", crate)
+        try:
+            expected_path = crate.download_untar(destination_directory=cache_dir)
+
+        except:
+            import shutil
+
+            shutil.rmtree(expected_path)
+
+    return pathlib.Path(f"{expected_path}/{particle}").read_text()
 
 
 @cache.cache()
